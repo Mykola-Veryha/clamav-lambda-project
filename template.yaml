@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  myClamAVLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:PutObjectTagging
+                  - s3:GetObjectTagging
+                Resource:
+                  - arn:aws:s3:::my-clamav-lambda-2025-1/*
+                  - arn:aws:s3:::my-clamav-lambda-2025-1
+
+  myClamAVLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !GetAtt myClamAVLambdaRole.Arn
+      CodeUri: .
+      MemorySize: 3008
+      Timeout: 900
+      Architectures:
+        - x86_64
+      EphemeralStorage:
+        Size: 10240
+      ImageUri: 311141545462.dkr.ecr.us-east-1.amazonaws.com/clamav-lambda:latest
+      PackageType: Image
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref myClamAVLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: s3.amazonaws.com
+      SourceArn: arn:aws:s3:::my-clamav-lambda-2025-1
